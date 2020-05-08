@@ -1,3 +1,29 @@
+// g2o - General Graph Optimization
+// Copyright (C) 2011 R. Kuemmerle, G. Grisetti, H. Strasdat, W. Burgard
+// All rights reserved.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are
+// met:
+//
+// * Redistributions of source code must retain the above copyright notice,
+//   this list of conditions and the following disclaimer.
+// * Redistributions in binary form must reproduce the above copyright
+//   notice, this list of conditions and the following disclaimer in the
+//   documentation and/or other materials provided with the distribution.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+// IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+// TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+// PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+// HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+// PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+// LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+// NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 #include <fstream>
 #include "g2o/core/sparse_optimizer.h"
 #include "g2o/solvers/pcg/linear_solver_pcg.h"
@@ -8,6 +34,7 @@
 #include "g2o/types/slam3d_addons/types_slam3d_addons.h"
 #include "g2o/stuff/macros.h"
 #include "g2o/stuff/command_args.h"
+#include "g2o/stuff/sampler.h"
 
 #include <iostream>
 
@@ -17,32 +44,14 @@ using namespace Eigen;
 
 G2O_USE_OPTIMIZATION_LIBRARY(csparse)
 
-//typedef Eigen::Matrix<double, 6,6> Matrix6d; //Avoid ambiguous symbol
+Eigen::Isometry3d sample_noise_from_se3(const Vector6& cov ){
+  double nx=g2o::Sampler::gaussRand(0., cov(0));
+  double ny=g2o::Sampler::gaussRand(0., cov(1));
+  double nz=g2o::Sampler::gaussRand(0., cov(2));
 
-double uniform_rand(double lowerBndr, double upperBndr)
-{
-  return lowerBndr + ((double) std::rand() / (RAND_MAX + 1.0)) * (upperBndr - lowerBndr);
-}
-
-double gauss_rand(double sigma)
-{
-  double x, y, r2;
-  do {
-    x = -1.0 + 2.0 * uniform_rand(0.0, 1.0);
-    y = -1.0 + 2.0 * uniform_rand(0.0, 1.0);
-    r2 = x * x + y * y;
-  } while (r2 > 1.0 || r2 == 0.0);
-  return sigma * y * std::sqrt(-2.0 * log(r2) / r2);
-}
-
-Eigen::Isometry3d sample_noise_from_se3(const Vector6d& cov ){
-  double nx=gauss_rand(cov(0));
-  double ny=gauss_rand(cov(1));
-  double nz=gauss_rand(cov(2));
-
-  double nroll=gauss_rand(cov(3));
-  double npitch=gauss_rand(cov(4));
-  double nyaw=gauss_rand(cov(5));
+  double nroll=g2o::Sampler::gaussRand(0., cov(3));
+  double npitch=g2o::Sampler::gaussRand(0., cov(4));
+  double nyaw=g2o::Sampler::gaussRand(0., cov(5));
 
   AngleAxisd aa(AngleAxisd(nyaw, Vector3d::UnitZ())*
     AngleAxisd(nroll, Vector3d::UnitX())*
@@ -55,7 +64,7 @@ Eigen::Isometry3d sample_noise_from_se3(const Vector6d& cov ){
 }
 
 Vector3d sample_noise_from_plane(const Vector3d& cov ){
-  return Vector3d(gauss_rand(cov(0)), gauss_rand(cov(1)), gauss_rand(cov(2)));
+  return Vector3d(g2o::Sampler::gaussRand(0., cov(0)), g2o::Sampler::gaussRand(0., cov(1)), g2o::Sampler::gaussRand(0., cov(2)));
 }
 
 struct SimulatorItem {
@@ -93,6 +102,8 @@ typedef std::vector<Sensor*> SensorVector;
 
 struct Robot: public WorldItem {
 
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
+
   Robot(OptimizableGraph* graph_): WorldItem(graph_) {
     _planarMotion=false;
     _position = Isometry3d::Identity();
@@ -109,7 +120,7 @@ struct Robot: public WorldItem {
     if (_planarMotion){
       // add a singleton constraint that locks the position of the robot on the plane
       EdgeSE3Prior* planeConstraint=new EdgeSE3Prior();
-      Matrix6d pinfo = Matrix6d::Zero();
+      Matrix6 pinfo = Matrix6::Zero();
       pinfo(2,2)=1e9;
       planeConstraint->setInformation(pinfo);
       planeConstraint->setMeasurement(Isometry3d::Identity());
@@ -122,7 +133,7 @@ struct Robot: public WorldItem {
       EdgeSE3* e=new EdgeSE3();
       Isometry3d noise=sample_noise_from_se3(_nmovecov);
       e->setMeasurement(delta*noise);
-      Matrix6d m=Matrix6d::Identity();
+      Matrix6 m=Matrix6::Identity();
       for (int i=0; i<6; i++){
 	m(i,i)=1./(_nmovecov(i));
       }
@@ -151,7 +162,7 @@ struct Robot: public WorldItem {
 
   Isometry3d _position;
   SensorVector _sensors;
-  Vector6d _nmovecov;
+  Vector6 _nmovecov;
   bool _planarMotion;
 };
 
@@ -161,7 +172,7 @@ struct Simulator: public SimulatorItem {
   Simulator(OptimizableGraph* graph_): SimulatorItem(graph_), _lastVertexId(0){}
   void sense(int robotIndex){
     Robot* r=_robots[robotIndex];
-    for (WorldItemSet::iterator it=_world.begin(); it!=_world.end(); it++){
+    for (WorldItemSet::iterator it=_world.begin(); it!=_world.end(); ++it){
       WorldItem* item=*it;
       r->sense(item);
     }
@@ -192,6 +203,8 @@ struct PlaneItem: public WorldItem{
 };
 
 struct PlaneSensor: public Sensor{
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
+
   PlaneSensor(Robot* r, int offsetId, const Isometry3d& offset_): Sensor(r){
     _offsetVertex = new VertexSE3();
     _offsetVertex->setId(offsetId);
@@ -416,7 +429,7 @@ int main (int argc  , char ** argv){
   if (fixSensor) {
     ps->_offsetVertex->setFixed(true);
   } else {
-    Vector6d noffcov;
+    Vector6 noffcov;
     noffcov << 0.1,0.1,0.1,0.5, 0.5, 0.5;
     ps->_offsetVertex->setEstimate(ps->_offsetVertex->estimate() * sample_noise_from_se3(noffcov));
     ps->_offsetVertex->setFixed(false);

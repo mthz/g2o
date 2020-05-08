@@ -37,78 +37,63 @@
 #include "g2o/stuff/macros.h"
 
 //#define ADD_SCALAR_ORDERING
-
-#define DIM_TO_SOLVER(p, l) BlockSolver< BlockSolverTraits<p, l> >
-
-#define ALLOC_CHOLMOD(s, p, l, blockorder) \
-  if (1) { \
-    std::cerr << "# Using CHOLMOD poseDim " << p << " landMarkDim " << l << " blockordering " << blockorder << std::endl; \
-    LinearSolverCholmod < DIM_TO_SOLVER(p, l)::PoseMatrixType >* linearSolver = new LinearSolverCholmod<DIM_TO_SOLVER(p, l)::PoseMatrixType>(); \
-    linearSolver->setBlockOrdering(blockorder); \
-    s = new DIM_TO_SOLVER(p, l)(linearSolver); \
-  } else (void)0
-
 using namespace std;
 
 namespace g2o {
 
-  static OptimizationAlgorithm* createSolver(const std::string& fullSolverName)
+  namespace
   {
-    g2o::Solver* s = 0;
-
-    string methodName = fullSolverName.substr(0, 2);
-    string solverName = fullSolverName.substr(3);
-
-    if (solverName == "var_cholmod") {
-      ALLOC_CHOLMOD(s, -1, -1, false);
+    template<int p, int l, bool blockorder>
+    std::unique_ptr<BlockSolverBase> AllocateSolver()
+    {
+      std::cerr << "# Using CHOLMOD poseDim " << p << " landMarkDim " << l << " blockordering " << blockorder << std::endl;
+      auto linearSolver = g2o::make_unique<LinearSolverCholmod<typename BlockSolverPL<p, l>::PoseMatrixType>>();
+      linearSolver->setBlockOrdering(blockorder);
+      return g2o::make_unique<BlockSolverPL<p, l>>(std::move(linearSolver));
     }
-    else if (solverName == "fix3_2_cholmod") {
-      ALLOC_CHOLMOD(s, 3, 2, true);
-    }
-    else if (solverName == "fix6_3_cholmod") {
-      ALLOC_CHOLMOD(s, 6, 3, true);
-    }
-    else if (solverName == "fix7_3_cholmod") {
-      ALLOC_CHOLMOD(s, 7, 3, true);
-    }
-#ifdef ADD_SCALAR_ORDERING
-    else if (solverName == "fix3_2_cholmod_scalar") {
-      ALLOC_CHOLMOD(s, 3, 2, false);
-    }
-    else if (solverName == "fix6_3_cholmod_scalar") {
-      ALLOC_CHOLMOD(s, 6, 3, false);
-    }
-    else if (solverName == "fix7_3_cholmod_scalar") {
-      ALLOC_CHOLMOD(s, 7, 3, false);
-    }
-#endif
-
-    OptimizationAlgorithm* snl = 0;
-    if (methodName == "gn") {
-      snl = new OptimizationAlgorithmGaussNewton(s);
-    }
-    else if (methodName == "lm") {
-      snl = new OptimizationAlgorithmLevenberg(s);
-    }
-    else if (methodName == "dl") {
-      BlockSolverBase* blockSolver = dynamic_cast<BlockSolverBase*>(s);
-      snl = new OptimizationAlgorithmDogleg(blockSolver);
-    }
-    else {
-      delete s;
-    }
-
-    return snl;
   }
 
-  class CholmodSolverCreator : public AbstractOptimizationAlgorithmCreator
+  static OptimizationAlgorithm* createSolver(const std::string& fullSolverName)
   {
-    public:
-      CholmodSolverCreator(const OptimizationAlgorithmProperty& p) : AbstractOptimizationAlgorithmCreator(p) {}
-      virtual OptimizationAlgorithm* construct()
-      {
-        return createSolver(property().name);
-      }
+    static const std::map<std::string, std::function<std::unique_ptr<BlockSolverBase>()>> solver_factories{
+      { "var_cholmod", &AllocateSolver<-1, -1, true> },
+      { "fix3_2_cholmod", &AllocateSolver<3, 2, true> },
+      { "fix6_3_cholmod", &AllocateSolver<6, 3, true> },
+      { "fix7_3_cholmod", &AllocateSolver<7, 3, true> },
+#ifdef ADD_SCALAR_ORDERING
+      { "fix3_2_cholmod_scalar", &AllocateSolver<3, 2, false> },
+      { "fix6_3_cholmod_scalar", &AllocateSolver<6, 3, false> },
+      { "fix7_3_cholmod_scalar", &AllocateSolver<7, 3, false> },
+#endif
+    };
+
+    string solverName = fullSolverName.substr(3);
+    auto solverf = solver_factories.find(solverName);
+    if (solverf == solver_factories.end())
+      return nullptr;
+
+    string methodName = fullSolverName.substr(0, 2);
+
+    if (methodName == "gn")
+    {
+      return new OptimizationAlgorithmGaussNewton(solverf->second());
+    }
+    else if (methodName == "lm")
+    {
+      return new OptimizationAlgorithmLevenberg(solverf->second());
+    }
+    else if (methodName == "dl")
+    {
+      return new OptimizationAlgorithmDogleg(solverf->second());
+    }
+
+    return nullptr;
+  }
+
+  class CholmodSolverCreator : public AbstractOptimizationAlgorithmCreator {
+   public:
+    explicit CholmodSolverCreator(const OptimizationAlgorithmProperty& p) : AbstractOptimizationAlgorithmCreator(p) {}
+    virtual OptimizationAlgorithm* construct() { return createSolver(property().name); }
   };
 
   G2O_REGISTER_OPTIMIZATION_LIBRARY(cholmod);

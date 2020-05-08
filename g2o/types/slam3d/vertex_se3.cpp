@@ -39,7 +39,7 @@ using namespace Eigen;
 namespace g2o {
 
   VertexSE3::VertexSE3() :
-    BaseVertex<6, Isometry3D>(),
+    BaseVertex<6, Isometry3>(),
     _numOplusCalls(0)
   {
     setToOriginImpl();
@@ -48,7 +48,7 @@ namespace g2o {
 
   bool VertexSE3::read(std::istream& is)
   {
-    Vector7d est;
+    Vector7 est;
     for (int i=0; i<7; i++)
       is  >> est[i];
     setEstimate(internal::fromVectorQT(est));
@@ -57,7 +57,7 @@ namespace g2o {
 
   bool VertexSE3::write(std::ostream& os) const
   {
-    Vector7d est=internal::toVectorQT(_estimate);
+    Vector7 est=internal::toVectorQT(_estimate);
     for (int i=0; i<7; i++)
       os << est[i] << " ";
     return os.good();
@@ -67,15 +67,15 @@ namespace g2o {
 
   HyperGraphElementAction* VertexSE3WriteGnuplotAction::operator()(HyperGraph::HyperGraphElement* element, HyperGraphElementAction::Parameters* params_){
     if (typeid(*element).name()!=_typeName)
-      return 0;
+      return nullptr;
     WriteGnuplotAction::Parameters* params=static_cast<WriteGnuplotAction::Parameters*>(params_);
     if (!params->os){
       std::cerr << __PRETTY_FUNCTION__ << ": warning, no valid os specified" << std::endl;
-      return 0;
+      return nullptr;
     }
-    
+
     VertexSE3* v =  static_cast<VertexSE3*>(element);
-    Vector6d est=internal::toVectorMQT(v->estimate());
+    Vector6 est=internal::toVectorMQT(v->estimate());
     for (int i=0; i<6; i++)
       *(params->os) << est[i] << " ";
     *(params->os) << std::endl;
@@ -95,11 +95,12 @@ namespace g2o {
       glVertex3f(p[0].x(), p[0].y(), p[0].z());
       glVertex3f(p[i].x(), p[i].y(), p[i].z());
       glVertex3f(p[i+1].x(), p[i+1].y(), p[i+1].z());
-    }    
+    }
     glEnd();
   }
 
-  VertexSE3DrawAction::VertexSE3DrawAction(): DrawAction(typeid(VertexSE3).name()){
+  VertexSE3DrawAction::VertexSE3DrawAction()
+      : DrawAction(typeid(VertexSE3).name()), _triangleX(nullptr), _triangleY(nullptr) {
     _cacheDrawActions = 0;
   }
 
@@ -116,16 +117,16 @@ namespace g2o {
     return true;
   }
 
-  HyperGraphElementAction* VertexSE3DrawAction::operator()(HyperGraph::HyperGraphElement* element, 
+  HyperGraphElementAction* VertexSE3DrawAction::operator()(HyperGraph::HyperGraphElement* element,
                  HyperGraphElementAction::Parameters* params_){
     if (typeid(*element).name()!=_typeName)
-      return 0;
+      return nullptr;
     initializeDrawActionsCache();
     refreshPropertyPtrs(params_);
 
     if (! _previousParams)
       return this;
-    
+
     if (_show && !_show->value())
       return this;
 
@@ -133,7 +134,7 @@ namespace g2o {
 
     glColor3f(POSE_VERTEX_COLOR);
     glPushMatrix();
-    glMultMatrixd(that->estimate().matrix().data());
+    glMultMatrixd(that->estimate().matrix().cast<double>().eval().data());
     opengl::drawArrow2D(_triangleX->value(), _triangleY->value(), _triangleX->value()*.3f);
     drawCache(that->cacheContainer(), params_);
     drawUserData(that->userData(), params_);

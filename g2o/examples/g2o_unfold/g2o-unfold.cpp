@@ -1,3 +1,29 @@
+// g2o - General Graph Optimization
+// Copyright (C) 2011 R. Kuemmerle, G. Grisetti, H. Strasdat, W. Burgard
+// All rights reserved.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are
+// met:
+//
+// * Redistributions of source code must retain the above copyright notice,
+//   this list of conditions and the following disclaimer.
+// * Redistributions in binary form must reproduce the above copyright
+//   notice, this list of conditions and the following disclaimer in the
+//   documentation and/or other materials provided with the distribution.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+// IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+// TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+// PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+// HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+// PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+// LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+// NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 //  ../aisnavigation-free/bin/g2o-unfold -i 30 -solver var_cholmod -v -gnudump vic.dat ../datasets/2D/victoriaPark/victoriaPark.g2o
 
 #include <signal.h>
@@ -42,9 +68,9 @@ struct InvChi2CostFunction: public HyperDijkstra::CostFunction {
 };
 
 double InvChi2CostFunction::operator () (HyperGraph::Edge* edge,
-           HyperGraph::Vertex* from __attribute__((unused)), 
+           HyperGraph::Vertex* from __attribute__((unused)),
            HyperGraph::Vertex* to __attribute__((unused)) ) {
-  
+
   OptimizableGraph::Edge* e = dynamic_cast<OptimizableGraph::Edge*>(edge);
 e->computeError();
 if(e->robustKernel())
@@ -178,7 +204,7 @@ Solver* str2solver(const std::string& strSolver_, SparseOptimizer* opt)
     return 0;
   }
 #endif
-  if (! strStartsWith(strSolver, "pcg")) 
+  if (! strStartsWith(strSolver, "pcg"))
     cerr << "# Using " << (useCholmod ? "cholmod" : "CSparse") << " " << strSolver << endl;
   else
     cerr << "# Using PCG " << strSolver<< endl;
@@ -217,14 +243,14 @@ Solver* str2solver(const std::string& strSolver_, SparseOptimizer* opt)
 }
 
 
-void gnudump_edges(string gnudump, 
-      string file_suffix, 
-      HyperGraph::EdgeSet::const_iterator begin, 
+void gnudump_edges(const string& gnudump,
+      const string& file_suffix,
+      HyperGraph::EdgeSet::const_iterator begin,
       HyperGraph::EdgeSet::const_iterator end,
       bool dumpEdges,
       bool dumpFeatures) {
 
-  // ------- 
+  // -------
   if (gnudump.size() > 0) {
     string baseName = getPureFilename(gnudump);
     string extension = getFileExtension(gnudump);
@@ -234,9 +260,9 @@ void gnudump_edges(string gnudump,
 
 
     ofstream fout(newFilename.c_str());
-    
+
     for (HyperGraph::EdgeSet::const_iterator eit = begin; eit != end; ++eit) {
-      
+
       OptimizableGraph::Edge* e = static_cast<OptimizableGraph::Edge*>(const_cast<HyperGraph::Edge*>(*eit));
       e->computeError();
       if(e->robustKernel())
@@ -245,8 +271,8 @@ void gnudump_edges(string gnudump,
 
       const VertexSE2* from = dynamic_cast<const VertexSE2*>((*eit)->vertex(0));
       const VertexSE2* to   = dynamic_cast<const VertexSE2*>((*eit)->vertex(1));
-   
-      if(dumpEdges) { 
+
+      if(dumpEdges) {
   if (from && to) {
     Vector3d p1 = from->estimate().toVector();
     Vector3d p2 = to->estimate().toVector();
@@ -276,12 +302,12 @@ void gnudump_edges(string gnudump,
   }
 }
 
-void gnudump_features(string gnudump, 
-          string file_suffix, 
-          HyperGraph::EdgeSet::const_iterator begin, 
+void gnudump_features(string gnudump,
+          string file_suffix,
+          HyperGraph::EdgeSet::const_iterator begin,
           HyperGraph::EdgeSet::const_iterator end) {
 
-  // ------- 
+  // -------
   if (gnudump.size() > 0) {
     string baseName = getPureFilename(gnudump);
     string extension = getFileExtension(gnudump);
@@ -291,9 +317,9 @@ void gnudump_features(string gnudump,
 
 
     ofstream fout(newFilename.c_str());
-    
+
     for (HyperGraph::EdgeSet::const_iterator eit = begin; eit != end; ++eit) {
-      
+
       OptimizableGraph::Edge* e = static_cast<OptimizableGraph::Edge*>(*eit);
       e->computeError();
       if(e->robustKernel())
@@ -367,7 +393,7 @@ int main(int argc, char** argv)
   SparseOptimizer optimizer;
   optimizer.verbose() = verbose;
   optimizer.setForceStopFlag(&hasToStop);
-  
+
   optimizer.method() = str2method(strMethod);
   optimizer.solver() = str2solver(strSolver, &optimizer);
   if (! optimizer.solver()) {
@@ -410,11 +436,11 @@ int main(int argc, char** argv)
     {
       cerr << "Preparing Marginalization of the Landmarks ... ";
       int maxDim = -1;
-      for (HyperGraph::VertexIDMap::iterator it=optimizer.vertices().begin(); it!=optimizer.vertices().end(); it++){
+      for (HyperGraph::VertexIDMap::iterator it=optimizer.vertices().begin(); it!=optimizer.vertices().end(); ++it){
   OptimizableGraph::Vertex* v=static_cast<OptimizableGraph::Vertex*>(it->second);
   maxDim = (max)(v->dimension(), maxDim);
       }
-      for (HyperGraph::VertexIDMap::iterator it=optimizer.vertices().begin(); it!=optimizer.vertices().end(); it++){
+      for (HyperGraph::VertexIDMap::iterator it=optimizer.vertices().begin(); it!=optimizer.vertices().end(); ++it){
   OptimizableGraph::Vertex* v=static_cast<OptimizableGraph::Vertex*>(it->second);
   if (v->dimension() != maxDim) {
     //cerr << "m";
@@ -512,21 +538,21 @@ int main(int argc, char** argv)
           switch (doInit){
             case 1: // initialize v1 from v2
               if (e->initialEstimatePossible(to, from)) {
-                // cerr << "init: " 
-                //      << to->id() << "(" << to->dimension() << ") -> " 
+                // cerr << "init: "
+                //      << to->id() << "(" << to->dimension() << ") -> "
                 //      << from->id() << "(" << from->dimension() << ") " << endl;
                 e->initialEstimate(to, from);
               }
               break;
-            case 2: 
+            case 2:
               if (e->initialEstimatePossible(from, to)) {
-                // cerr << "init: " 
-                //      << from->id() << "(" << from->dimension() << ") -> " 
+                // cerr << "init: "
+                //      << from->id() << "(" << from->dimension() << ") -> "
                 //      << to->id() << "(" << to->dimension() << ") " << endl;
-                e->initialEstimate(from, to);  
+                e->initialEstimate(from, to);
               }
               break;
-            default: cerr << "doInit wrong value\n"; 
+            default: cerr << "doInit wrong value\n";
           }
         }
 
@@ -553,7 +579,7 @@ int main(int argc, char** argv)
           cerr << ".";
         addNextEdge=true;
         freshlyOptimized=true;
-        it--;
+        --it;
       }
 
       if (guiOut) {
@@ -568,11 +594,11 @@ int main(int argc, char** argv)
 
   } else {
 
-    if (gnudump.size() > 0) 
+    if (gnudump.size() > 0)
       gnudump_edges(gnudump, "inputtraj", optimizer.edges().begin(), optimizer.edges().end(), true, false);
-  if (gnudump.size() > 0) 
+  if (gnudump.size() > 0)
     gnudump_features(gnudump, "inputfeatures", optimizer.edges().begin(), optimizer.edges().end());
-    if (gnudump.size() > 0) 
+    if (gnudump.size() > 0)
       gnudump_edges(gnudump, "input", optimizer.edges().begin(), optimizer.edges().end(), true, true);
 
     // BATCH optimization
@@ -589,19 +615,19 @@ int main(int argc, char** argv)
       cerr << "Cholesky failed, result might be invalid" << endl;
     }
 
-    if (gnudump.size() > 0) 
+    if (gnudump.size() > 0)
       gnudump_edges(gnudump, "regularopttraj", optimizer.edges().begin(), optimizer.edges().end(), true, false);
-  if (gnudump.size() > 0) 
+  if (gnudump.size() > 0)
     gnudump_features(gnudump, "regularoptfeatures", optimizer.edges().begin(), optimizer.edges().end());
-    if (gnudump.size() > 0) 
+    if (gnudump.size() > 0)
       gnudump_edges(gnudump, "regularopt", optimizer.edges().begin(), optimizer.edges().end(), true, true);
-    
+
 
     cerr << "Computing chi2 statistics ";
     double sumChi2=0.0;
     double chi2Thres=0.0;
     int cnt=0;
-  
+
     for (HyperGraph::EdgeSet::const_iterator it = optimizer.edges().begin(); it != optimizer.edges().end(); ++it) {
       OptimizableGraph::Edge* e = static_cast<OptimizableGraph::Edge*>(*it);
       e->computeError();
@@ -620,7 +646,7 @@ int main(int argc, char** argv)
 
     HyperGraph::EdgeSet edgesToOptimize_selected;
     HyperGraph::EdgeSet edgesToOptimize_border;
-  
+
     for (HyperGraph::EdgeSet::const_iterator it = optimizer.edges().begin(); it != optimizer.edges().end(); ++it) {
       OptimizableGraph::Edge* e = static_cast<OptimizableGraph::Edge*>(*it);
       e->computeError();
@@ -645,17 +671,17 @@ int main(int argc, char** argv)
     }
     cerr << " found=" << highErrorEdges.size() << "/" << highErrorEdgesToFeatures.size() << " edges with high errors .. done" << endl;
 
-  
-    if (gnudump.size() > 0) 
+
+    if (gnudump.size() > 0)
       gnudump_edges(gnudump, "hee", highErrorEdges.begin(), highErrorEdges.end(), true, false);
 
-    if (gnudump.size() > 0) 
+    if (gnudump.size() > 0)
       gnudump_edges(gnudump, "heef_", highErrorEdgesToFeatures.begin(), highErrorEdgesToFeatures.end(), true, true);
-  
+
 
     // fix all vertices
     cerr << "Fixing the whole graph ";
-    for (std::map<int, HyperGraph::Vertex*>::iterator vit = optimizer.vertices().begin(); 
+    for (std::map<int, HyperGraph::Vertex*>::iterator vit = optimizer.vertices().begin();
    vit != optimizer.vertices().end(); ++vit) {
       OptimizableGraph::Vertex* v = static_cast<OptimizableGraph::Vertex*>((*vit).second);
       v->fixed() = true;
@@ -671,18 +697,18 @@ int main(int argc, char** argv)
 
     while (!highErrorEdges.empty()) {
 
-      HyperGraph::EdgeSet::iterator it = highErrorEdges.begin(); 
+      HyperGraph::EdgeSet::iterator it = highErrorEdges.begin();
 
-      HyperGraph::EdgeSet selected;    
-      HyperGraph::EdgeSet border;    
+      HyperGraph::EdgeSet selected;
+      HyperGraph::EdgeSet border;
       InvChi2CostFunction c2cost;
 
       HyperGraph::Edge* start = *it;
       bool edgesSelected = false;
-      
+
       findConnectedEdgesWithCostLimit(selected, border, start, &c2cost, 2.0/chi2Thres);
 
- 
+
       if (selected.size() > 10)  {
   edgesSelected = true;
   cerr << " (" << selected.size() << ", " << border.size() << ")";
@@ -705,29 +731,29 @@ int main(int argc, char** argv)
     highErrorEdges.erase(removeMe);
   }
       }
-      
+
       if (edgesSelected)  {
   myEdgeStack.push_back( EdgeSetPair(selected,border) );
       }
     }
     cerr << " done" << endl;
 
-    cerr << "Found " << myEdgeStack.size() 
-   << " clusters in sum with " << edgesToOptimize_selected.size() << " high error edges" 
+    cerr << "Found " << myEdgeStack.size()
+   << " clusters in sum with " << edgesToOptimize_selected.size() << " high error edges"
    << " and " << edgesToOptimize_border.size() << " border edges." << endl;
 
 
-    if (gnudump.size() > 0) 
+    if (gnudump.size() > 0)
       gnudump_edges(gnudump, "selected", edgesToOptimize_selected.begin(), edgesToOptimize_selected.end(),true, false);
 
-    if (gnudump.size() > 0) 
+    if (gnudump.size() > 0)
       gnudump_edges(gnudump, "border", edgesToOptimize_border.begin(), edgesToOptimize_border.end(),true, false);
 
-    if (gnudump.size() > 0) 
+    if (gnudump.size() > 0)
       gnudump_edges(gnudump, "reoptimizeme", edgesToOptimize.begin(), edgesToOptimize.end(),true, false);
 
     cerr << "Unfixing high error edges ";
-    for (EdgeSetPairVector::iterator it = myEdgeStack.begin(); 
+    for (EdgeSetPairVector::iterator it = myEdgeStack.begin();
    it != myEdgeStack.end(); ++it) {
 
       // un-fix bad vertices
@@ -753,13 +779,13 @@ int main(int argc, char** argv)
 
 
     cerr << "Searching for init nodes and re-initialize subgraphs .. ";
-    for (EdgeSetPairVector::iterator it = myEdgeStack.begin(); 
+    for (EdgeSetPairVector::iterator it = myEdgeStack.begin();
    it != myEdgeStack.end(); ++it) {
 
       // determine good node for initialization  (one out of the borders!)
       cerr << "S";
       HyperGraph::EdgeSet::iterator eit = (*it).second.begin();
-    
+
       OptimizableGraph::Vertex* initNode = 0;
       OptimizableGraph::Vertex* vfrom = static_cast<OptimizableGraph::Vertex*>((*eit)->vertex(0));
       OptimizableGraph::Vertex* vto = static_cast<OptimizableGraph::Vertex*>((*eit)->vertex(1));
@@ -768,28 +794,28 @@ int main(int argc, char** argv)
   initNode = vfrom;
       else if (vto && vto->fixed())
   initNode = vto;
-      else 
+      else
   initNode = vfrom;
-    
+
       // reinitialize bad vertices
       cerr << "I";
       optimizer.initializeActiveSubsetViaMeasurements(initNode, guessCostFunction);
       cerr << "-";
-    }      
+    }
     cerr << " .. done" << endl;
-      
-    if (gnudump.size() > 0) 
+
+    if (gnudump.size() > 0)
       gnudump_edges(gnudump, "subsetinitialized", optimizer.edges().begin(), optimizer.edges().end(),true, false);
 
-  
+
     // run all local optimization
     cerr << "Optimize subgraphs .. "<< endl;
-    optimizer.optimizeLoop(maxIterations);    
+    optimizer.optimizeLoop(maxIterations);
     cerr << "done" << endl;
-  
-    if (gnudump.size() > 0) 
+
+    if (gnudump.size() > 0)
       gnudump_edges(gnudump, "subsetoptimized", optimizer.edges().begin(), optimizer.edges().end(),true, false);
- 
+
 
     if (0) // no effect visible, why??
     if (highErrorEdgesToFeatures.size() > 0) {
@@ -798,7 +824,7 @@ int main(int argc, char** argv)
 
       // fix all vertices
       cerr << "Fixing the whole graph ";
-      for (std::map<int, HyperGraph::Vertex*>::iterator vit = optimizer.vertices().begin(); 
+      for (std::map<int, HyperGraph::Vertex*>::iterator vit = optimizer.vertices().begin();
      vit != optimizer.vertices().end(); ++vit) {
   OptimizableGraph::Vertex* v = static_cast<OptimizableGraph::Vertex*>((*vit).second);
   v->fixed() = true;
@@ -806,20 +832,20 @@ int main(int argc, char** argv)
       cerr << " done" << endl;
 
       cerr << "Unfixing bad features";
-      for (HyperGraph::EdgeSet::iterator eit = highErrorEdgesToFeatures.begin(); 
+      for (HyperGraph::EdgeSet::iterator eit = highErrorEdgesToFeatures.begin();
      eit != highErrorEdgesToFeatures.end(); ++eit) {
 
   OptimizableGraph::Vertex* v = dynamic_cast<OptimizableGraph::Vertex*>((*eit)->vertex(1));
   v->fixed() = false;
 
   edgesToBadFeatures.insert(v->edges().begin(), v->edges().end());
-      } 
+      }
 
       cerr << "  considering " << edgesToBadFeatures.size() << " edges .. done"<< endl;
 
-      if (gnudump.size() > 0) 
+      if (gnudump.size() > 0)
   gnudump_edges(gnudump, "featurereinit", edgesToBadFeatures.begin(), edgesToBadFeatures.end(), true, true);
-      if (gnudump.size() > 0) 
+      if (gnudump.size() > 0)
   gnudump_features(gnudump, "featurereinitfeatures", edgesToBadFeatures.begin(), edgesToBadFeatures.end());
 
 
@@ -830,16 +856,16 @@ int main(int argc, char** argv)
 
       // run all local optimization
       cerr << "Optimize bad features .. "<< endl;
-      optimizer.optimizeLoop(maxIterations/2);    
+      optimizer.optimizeLoop(maxIterations/2);
       cerr << "done" << endl;
 
-      if (gnudump.size() > 0) 
+      if (gnudump.size() > 0)
   gnudump_edges(gnudump, "subgraphsfinal", optimizer.edges().begin(), optimizer.edges().end(),true, false);
     }
-    
-  
+
+
     // un-fix all vertices
-    for (std::map<int, HyperGraph::Vertex*>::iterator vit = optimizer.vertices().begin(); 
+    for (std::map<int, HyperGraph::Vertex*>::iterator vit = optimizer.vertices().begin();
    vit != optimizer.vertices().end(); ++vit) {
       OptimizableGraph::Vertex* v = static_cast<OptimizableGraph::Vertex*>((*vit).second);
       v->fixed() = false;
@@ -850,20 +876,20 @@ int main(int argc, char** argv)
     optimizer.initializeOptimization(optimizer.edges());// ALLLL
     cerr << "done" << endl;
     cerr << "Optimize .. " << endl;
-    optimizer.optimizeLoop(maxIterations);    
+    optimizer.optimizeLoop(maxIterations);
     cerr << "done" << endl;
-  
-  }
-  
 
-  if (gnudump.size() > 0) 
+  }
+
+
+  if (gnudump.size() > 0)
     gnudump_edges(gnudump, "finaltraj", optimizer.edges().begin(), optimizer.edges().end(),true,false);
-  if (gnudump.size() > 0) 
+  if (gnudump.size() > 0)
     gnudump_features(gnudump, "finalfeatures", optimizer.edges().begin(), optimizer.edges().end());
-  if (gnudump.size() > 0) 
+  if (gnudump.size() > 0)
     gnudump_edges(gnudump, "final", optimizer.edges().begin(), optimizer.edges().end(),true,true);
 
-  
+
   if (statsFile!=""){
     cerr << "writing stats to file \"" << statsFile << "\"";
     ofstream os(statsFile.c_str());
@@ -872,7 +898,7 @@ int main(int argc, char** argv)
     }
   }
 
-   
+
 
   //     // HACK write landmarks to anotherfile
   // #   if 1

@@ -1,16 +1,16 @@
 // g2o - General Graph Optimization
 // Copyright (C) 2011 R. Kuemmerle, G. Grisetti, W. Burgard
-// 
+//
 // g2o is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published
 // by the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
-// 
+//
 // g2o is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU Lesser General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -29,73 +29,64 @@
 
 //#define ADD_SCALAR_ORDERING
 
-#define DIM_TO_SOLVER(p, l) BlockSolver< BlockSolverTraits<p, l> >
-
-#define ALLOC_CSPARSE(s, p, l, blockorder) \
-  if (1) { \
-    std::cerr << "# Using CSparse poseDim " << p << " landMarkDim " << l << " blockordering " << blockorder << std::endl; \
-    LinearSolverCSparse< DIM_TO_SOLVER(p, l)::PoseMatrixType >* linearSolver = new LinearSolverCSparse<DIM_TO_SOLVER(p, l)::PoseMatrixType>(); \
-    linearSolver->setBlockOrdering(blockorder); \
-    s = new DIM_TO_SOLVER(p, l)(linearSolver); \
-  } else (void)0
-
 using namespace std;
 
 namespace g2o {
+
+  namespace
+  {
+    template<int p, int l, bool blockorder>
+    std::unique_ptr<BlockSolverBase> AllocateSolver()
+    {
+      std::cerr << "# Using CSparse poseDim " << p << " landMarkDim " << l << " blockordering " << blockorder << std::endl;
+      auto linearSolver = g2o::make_unique<LinearSolverCSparse<typename BlockSolverPL<p, l>::PoseMatrixType>>();
+      linearSolver->setBlockOrdering(blockorder);
+      return g2o::make_unique<BlockSolverPL<p, l>>(std::move(linearSolver));
+    }
+  }
 
   /**
    * helper function for allocating
    */
   static OptimizationAlgorithm* createSolver(const std::string& fullSolverName)
   {
-    g2o::Solver* s = 0;
+    static const std::map<std::string, std::function<std::unique_ptr<BlockSolverBase>()>> solver_factories{
+      { "var", &AllocateSolver<-1, -1, false> },
+      { "fix3_2", &AllocateSolver<3, 2, true> },
+      { "fix6_3", &AllocateSolver<6, 3, true> },
+      { "fix7_3", &AllocateSolver<7, 3, true> },
+      { "fix3_2_scalar", &AllocateSolver<3, 2, false> },
+      { "fix6_3_scalar", &AllocateSolver<6, 3, false> },
+      { "fix7_3_scalar", &AllocateSolver<7, 3, false> },
+    };
+
+    string solverName = fullSolverName.substr(3);
+    auto solverf = solver_factories.find(solverName);
+    if (solverf == solver_factories.end())
+      return nullptr;
 
     string methodName = fullSolverName.substr(0, 2);
-    string solverName = fullSolverName.substr(3);
 
-    if (solverName == "var") {
-      ALLOC_CSPARSE(s, -1, -1, false);
+    if (methodName == "gn")
+    {
+      return new OptimizationAlgorithmGaussNewton(solverf->second());
     }
-    else if (solverName == "fix3_2") {
-      ALLOC_CSPARSE(s, 3, 2, true);
+    else if (methodName == "lm")
+    {
+      return new OptimizationAlgorithmLevenberg(solverf->second());
     }
-    else if (solverName == "fix6_3") {
-      ALLOC_CSPARSE(s, 6, 3, true);
-    }
-    else if (solverName == "fix7_3") {
-      ALLOC_CSPARSE(s, 7, 3, true);
-    }
-#  ifdef ADD_SCALAR_ORDERING
-    else if (solverName == "fix3_2_scalar") {
-      ALLOC_CSPARSE(s, 3, 2, false);
-    }
-    else if (solverName == "fix6_3_scalar") {
-      ALLOC_CSPARSE(s, 6, 3, false);
-    }
-    else if (solverName == "fix7_3_scalar") {
-      ALLOC_CSPARSE(s, 7, 3, false);
-    }
-#endif
-
-    OptimizationAlgorithm* snl = 0;
-    if (methodName == "gn") {
-      snl = new OptimizationAlgorithmGaussNewton(s);
-    }
-    else if (methodName == "lm") {
-      snl = new OptimizationAlgorithmLevenberg(s);
-    }
-    else if (methodName == "dl") {
-      BlockSolverBase* blockSolver = dynamic_cast<BlockSolverBase*>(s);
-      snl = new OptimizationAlgorithmDogleg(blockSolver);
+    else if (methodName == "dl")
+    {
+      return new OptimizationAlgorithmDogleg(solverf->second());
     }
 
-    return snl;
+    return nullptr;
   }
 
   class CSparseSolverCreator : public AbstractOptimizationAlgorithmCreator
   {
     public:
-      CSparseSolverCreator(const OptimizationAlgorithmProperty& p) : AbstractOptimizationAlgorithmCreator(p) {}
+      explicit CSparseSolverCreator(const OptimizationAlgorithmProperty& p) : AbstractOptimizationAlgorithmCreator(p) {}
       virtual OptimizationAlgorithm* construct()
       {
         return createSolver(property().name);

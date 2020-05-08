@@ -1,3 +1,29 @@
+// g2o - General Graph Optimization
+// Copyright (C) 2011 R. Kuemmerle, G. Grisetti, H. Strasdat, W. Burgard
+// All rights reserved.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are
+// met:
+//
+// * Redistributions of source code must retain the above copyright notice,
+//   this list of conditions and the following disclaimer.
+// * Redistributions in binary form must reproduce the above copyright
+//   notice, this list of conditions and the following disclaimer in the
+//   documentation and/or other materials provided with the distribution.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+// IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+// TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+// PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+// HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+// PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+// LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+// NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 #include <Eigen/Dense>
 #include "edge_labeler.h"
 #include "g2o/stuff/unscented.h"
@@ -17,7 +43,7 @@ namespace g2o {
     // assume the system is "solved"
     // compute the sparse pattern of the inverse
     std::set<std::pair<int, int> > pattern;
-    for (std::set<OptimizableGraph::Edge*>::iterator it=edges.begin(); it!=edges.end(); it++){
+    for (std::set<OptimizableGraph::Edge*>::iterator it=edges.begin(); it!=edges.end(); ++it){
       augmentSparsePattern(pattern, *it);
     }
 
@@ -32,7 +58,7 @@ namespace g2o {
       return -1;
     }
     int count=0;
-    for (std::set<OptimizableGraph::Edge*>::iterator it=edges.begin(); it!=edges.end(); it++){
+    for (std::set<OptimizableGraph::Edge*>::iterator it=edges.begin(); it!=edges.end(); ++it){
       count += labelEdge(spInv, *it) ? 1 : 0;
     }
     return count;
@@ -62,7 +88,7 @@ namespace g2o {
     //std::copy(pattern.begin(),pattern.end(),blockIndices.begin());
 
     int k=0;
-    for(std::set<std::pair<int, int> >::const_iterator it= pattern.begin(); it!=pattern.end(); it++){
+    for(std::set<std::pair<int, int> >::const_iterator it= pattern.begin(); it!=pattern.end(); ++it){
       blockIndices[k++]=*it;
     }
 
@@ -199,8 +225,8 @@ namespace g2o {
     MatrixXd errorCov(e->dimension(), e->dimension());
     VectorXd errorMean(e->dimension());
     reconstructGaussian(errorMean, errorCov, errorPoints);
-    info=errorCov.inverse();
 
+    //info=errorCov.inverse();
     // cerr << "remapped information matrix" << endl;
     // cerr << info << endl;
     return true;

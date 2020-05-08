@@ -22,14 +22,13 @@ namespace g2o
     template<typename Type>
     void free_aligned(Type* block)
     {
-        
         Eigen::internal::aligned_free(block);
     }
 
     template<typename Type>
     struct dynamic_aligned_buffer
     {
-        dynamic_aligned_buffer(size_t size)
+        explicit dynamic_aligned_buffer(size_t size)
             : m_size{ 0 }, m_ptr{ nullptr }
         {
             allocate(size);
@@ -71,5 +70,14 @@ namespace g2o
 
         std::size_t m_size;
         Type* m_ptr;
+    };
+
+    template<typename T>
+    struct aligned_deleter
+    {
+        void operator()(T* block)
+        {
+            free_aligned(block);
+        }
     };
 }

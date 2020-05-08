@@ -50,13 +50,13 @@ namespace g2o {
   bool RobotLaser::read(std::istream& is)
   {
     int type;
-    double angle, fov, res, maxrange, acc;
+    number_t angle, fov, res, maxrange, acc;
     int remission_mode;
     is >> type >> angle >> fov >> res >> maxrange >> acc >> remission_mode;
 
     int beams;
     is >> beams;
-    _laserParams = LaserParameters(type, beams, angle, res, maxrange, acc, remission_mode);      
+    _laserParams = LaserParameters(type, beams, angle, res, maxrange, acc, remission_mode);
     _ranges.resize(beams);
     for (int i=0; i<beams; i++)
       is >> _ranges[i];
@@ -67,7 +67,7 @@ namespace g2o {
       is >> _remissions[i];
 
     // special robot laser stuff
-    double x,y,theta;
+    number_t x,y,theta;
     is >> x >> y >> theta;
     SE2 lp(x,y,theta);
     //cerr << "x: " << x << " y:" << y << " th:" << theta << " ";
@@ -97,7 +97,7 @@ namespace g2o {
       os << " " << _remissions[i];
 
     // odometry pose
-    Vector3D p = (_odomPose * _laserParams.laserPose).toVector();
+    Vector3 p = (_odomPose * _laserParams.laserPose).toVector();
     os << " " << p.x() << " " << p.y() << " " << p.z();
     p = _odomPose.toVector();
     os << " " << p.x() << " " << p.y() << " " << p.z();
@@ -119,8 +119,8 @@ namespace g2o {
 
 
 #ifdef G2O_HAVE_OPENGL
-  RobotLaserDrawAction::RobotLaserDrawAction(): DrawAction(typeid(RobotLaser).name()){
-  }
+  RobotLaserDrawAction::RobotLaserDrawAction()
+      : DrawAction(typeid(RobotLaser).name()), _beamsDownsampling(nullptr), _pointSize(nullptr), _maxRange(nullptr) {}
 
   bool RobotLaserDrawAction::refreshPropertyPtrs(HyperGraphElementAction::Parameters* params_){
     if (!DrawAction::refreshPropertyPtrs(params_))
@@ -137,10 +137,10 @@ namespace g2o {
     return true;
   }
 
-  HyperGraphElementAction* RobotLaserDrawAction::operator()(HyperGraph::HyperGraphElement* element, 
+  HyperGraphElementAction* RobotLaserDrawAction::operator()(HyperGraph::HyperGraphElement* element,
                  HyperGraphElementAction::Parameters* params_){
     if (typeid(*element).name()!=_typeName)
-      return 0;
+      return nullptr;
 
     refreshPropertyPtrs(params_);
     if (! _previousParams){
@@ -155,18 +155,14 @@ namespace g2o {
       // prune the cartesian points;
       RawLaser::Point2DVector npoints(points.size());
       int k = 0;
-      float r2=_maxRange->value();
-      r2 *= r2;
-      for (size_t i=0; i<points.size(); i++){
-	double x = points[i].x();
-	double y = points[i].y();
-	if (x*x + y*y < r2)
-	  npoints[k++] = points[i];
+      auto r2 = std::pow(_maxRange->value(), 2);
+      for (size_t i = 0; i < points.size(); i++) {
+        if (points[i].squaredNorm() < r2) npoints[k++] = points[i];
       }
       points = npoints;
       npoints.resize(k);
     }
-    
+
     glPushMatrix();
     const SE2& laserPose = that->laserParams().laserPose;
     glTranslatef((float)laserPose.translation().x(), (float)laserPose.translation().y(), 0.f);

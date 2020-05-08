@@ -1,18 +1,28 @@
 // g2o - General Graph Optimization
 // Copyright (C) 2011 R. Kuemmerle, G. Grisetti, W. Burgard
+// All rights reserved.
 //
-// g2o is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Lesser General Public License as published
-// by the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are
+// met:
 //
-// g2o is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU Lesser General Public License for more details.
+// * Redistributions of source code must retain the above copyright notice,
+//   this list of conditions and the following disclaimer.
+// * Redistributions in binary form must reproduce the above copyright
+//   notice, this list of conditions and the following disclaimer in the
+//   documentation and/or other materials provided with the distribution.
 //
-// You should have received a copy of the GNU Lesser General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+// IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+// TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+// PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+// HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+// PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+// LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+// NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <signal.h>
 #include <iostream>
@@ -402,25 +412,25 @@ int main(int argc, char** argv)
   OptimizableGraph::EdgeSet   heset;
   OptimizableGraph::VertexSet hvset;
   HyperGraph::VertexSet hgauge;
-  for (StarSet::iterator it=stars.begin(); it!=stars.end(); it++) {
+  for (StarSet::iterator it=stars.begin(); it!=stars.end(); ++it) {
 
     Star* s=*it;
     if (hgauge.empty())
       hgauge=s->gauge();
 
     for (HyperGraph::VertexSet::iterator git=s->gauge().begin();
-	 git != s->gauge().end(); git++) {
+	 git != s->gauge().end(); ++git) {
       hvset.insert(*git);
     }
 
-    for (HyperGraph::EdgeSet::iterator iit=s->_starEdges.begin(); iit!=s->_starEdges.end(); iit++){
+    for (HyperGraph::EdgeSet::iterator iit=s->_starEdges.begin(); iit!=s->_starEdges.end(); ++iit){
       OptimizableGraph::Edge* e= (OptimizableGraph::Edge*) *iit;
       eset.insert(e);
       for (size_t i=0; i<e->vertices().size(); i++){
         vset.insert(e->vertices()[i]);
       }
     }
-    for (HyperGraph::EdgeSet::iterator iit=s->starFrontierEdges().begin(); iit!=s->starFrontierEdges().end(); iit++){
+    for (HyperGraph::EdgeSet::iterator iit=s->starFrontierEdges().begin(); iit!=s->starFrontierEdges().end(); ++iit){
       OptimizableGraph::Edge* e= (OptimizableGraph::Edge*) *iit;
       heset.insert(e);
     }
@@ -439,7 +449,7 @@ int main(int argc, char** argv)
   cerr << "stars done!" << endl;
 
   cerr << "optimizing the high layer" << endl;
-  for (HyperGraph::VertexSet::iterator it = hgauge.begin(); it!=hgauge.end(); it++){
+  for (HyperGraph::VertexSet::iterator it = hgauge.begin(); it!=hgauge.end(); ++it){
     OptimizableGraph::Vertex* g=dynamic_cast<OptimizableGraph::Vertex*>(*it);
     g->setFixed(true);
   }
@@ -472,7 +482,7 @@ int main(int argc, char** argv)
   }
 
   cerr << "fixing the hstructure, and optimizing the floating nodes" << endl;
-  for (OptimizableGraph::VertexSet::iterator it = hvset.begin(); it!=hvset.end(); it++){
+  for (OptimizableGraph::VertexSet::iterator it = hvset.begin(); it!=hvset.end(); ++it){
     OptimizableGraph::Vertex* g=dynamic_cast<OptimizableGraph::Vertex*>(*it);
     g->setFixed(true);
   }
@@ -487,11 +497,11 @@ int main(int argc, char** argv)
 
 
   cerr << "adding the original constraints, locking hierarchical solution and optimizing the free variables" << endl;
-  for (OptimizableGraph::VertexSet::iterator it = vset.begin(); it!=vset.end(); it++){
+  for (OptimizableGraph::VertexSet::iterator it = vset.begin(); it!=vset.end(); ++it){
     OptimizableGraph::Vertex* g=dynamic_cast<OptimizableGraph::Vertex*>(*it);
     g->setFixed(true);
   }
-  for (HyperGraph::VertexSet::iterator it = hgauge.begin(); it!=hgauge.end(); it++){
+  for (HyperGraph::VertexSet::iterator it = hgauge.begin(); it!=hgauge.end(); ++it){
     OptimizableGraph::Vertex* g=dynamic_cast<OptimizableGraph::Vertex*>(*it);
     g->setFixed(true);
   }
@@ -502,11 +512,11 @@ int main(int argc, char** argv)
 
 
   cerr << "relaxing the full problem" << endl;
-  for (OptimizableGraph::VertexSet::iterator it = vset.begin(); it!=vset.end(); it++){
+  for (OptimizableGraph::VertexSet::iterator it = vset.begin(); it!=vset.end(); ++it){
     OptimizableGraph::Vertex* g=dynamic_cast<OptimizableGraph::Vertex*>(*it);
     g->setFixed(false);
   }
-  for (HyperGraph::VertexSet::iterator it = hgauge.begin(); it!=hgauge.end(); it++){
+  for (HyperGraph::VertexSet::iterator it = hgauge.begin(); it!=hgauge.end(); ++it){
     OptimizableGraph::Vertex* g=dynamic_cast<OptimizableGraph::Vertex*>(*it);
     g->setFixed(true);
   }
@@ -527,7 +537,7 @@ int main(int argc, char** argv)
     int nLandmarks=0;
     int nPoses=0;
     int maxDim = *vertexDimensions.rbegin();
-    for (HyperGraph::VertexIDMap::iterator it=optimizer.vertices().begin(); it!=optimizer.vertices().end(); it++){
+    for (HyperGraph::VertexIDMap::iterator it=optimizer.vertices().begin(); it!=optimizer.vertices().end(); ++it){
       OptimizableGraph::Vertex* v=static_cast<OptimizableGraph::Vertex*>(it->second);
       if (v->dimension() != maxDim) {
 	nLandmarks++;
@@ -537,7 +547,7 @@ int main(int argc, char** argv)
 
     int nEdges=0;
     set<string> edgeTypes;
-    for (HyperGraph::EdgeSet::iterator it=optimizer.edges().begin(); it!=optimizer.edges().end(); it++){
+    for (HyperGraph::EdgeSet::iterator it=optimizer.edges().begin(); it!=optimizer.edges().end(); ++it){
       OptimizableGraph::Edge* e = dynamic_cast<OptimizableGraph::Edge*> (*it);
       if (e->level()==0) {
 	edgeTypes.insert(Factory::instance()->tag(e));
@@ -545,7 +555,7 @@ int main(int argc, char** argv)
       }
     }
     stringstream edgeTypesString;
-    for (std::set<string>::iterator it=edgeTypes.begin(); it!=edgeTypes.end(); it++){
+    for (std::set<string>::iterator it=edgeTypes.begin(); it!=edgeTypes.end(); ++it){
       edgeTypesString << *it << " ";
     }
 
